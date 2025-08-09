@@ -11,14 +11,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.service import Service
-from shutil import which
-import os
 import warnings
+
 warnings.filterwarnings('ignore')
 
-# =====================
-# CONFIG
-# =====================
+# Configure Gemini Model
 GEMINI_MODEL = "gemini-1.5-flash"
 
 def streamlit_config():
@@ -30,10 +27,9 @@ def streamlit_config():
     """, unsafe_allow_html=True)
     st.markdown(f'<h1 style="text-align: center;">Resume Analyzer AI</h1>', unsafe_allow_html=True)
 
-# =====================
-# RESUME ANALYZER
-# =====================
+
 class resume_analyzer:
+
     def pdf_to_text(pdf):
         pdf_reader = PdfReader(pdf)
         text = ""
@@ -171,33 +167,27 @@ class resume_analyzer:
             else:
                 st.warning("Please Enter Google API Key")
 
-# =====================
-# LINKEDIN SCRAPER
-# =====================
+
 class linkedin_scraper:
+
     def webdriver_setup():
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
-
-        if os.path.exists("/usr/bin/chromium-browser"):
-            chrome_options.binary_location = "/usr/bin/chromium-browser"
-            chromedriver_path = "/usr/bin/chromedriver"
-        else:
-            chrome_options.binary_location = which("chrome") or which("chromium") or "/usr/bin/google-chrome"
-            chromedriver_path = which("chromedriver")
-
-        driver = webdriver.Chrome(service=Service(chromedriver_path), options=chrome_options)
+        chrome_options.binary_location = "/usr/bin/chromium-browser"
+        driver_path = "/usr/bin/chromedriver"
+        driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
         driver.maximize_window()
         return driver
 
     def get_userinput():
         add_vertical_space(2)
         with st.form(key='linkedin_scarp'):
-            col1, col2, col3 = st.columns([0.5, 0.3, 0.2])
+            col1, col2, col3 = st.columns([0.5, 0.3, 0.2], gap='medium')
             with col1:
-                job_title_input = st.text_input(label='Job Title').split(',')
+                job_title_input = st.text_input(label='Job Title')
+                job_title_input = job_title_input.split(',')
             with col2:
                 job_location = st.text_input(label='Job Location', value='India')
             with col3:
@@ -206,9 +196,13 @@ class linkedin_scraper:
         return job_title_input, job_location, job_count, submit
 
     def build_url(job_title, job_location):
-        b = ['%20'.join(i.split()) for i in job_title]
+        b = []
+        for i in job_title:
+            x = i.split()
+            y = '%20'.join(x)
+            b.append(y)
         job_title = '%2C%20'.join(b)
-        return f"https://in.linkedin.com/jobs/search?keywords={job_title}&location={job_location}&geoId=102713980&f_TPR=r604800"
+        return f"https://in.linkedin.com/jobs/search?keywords={job_title}&location={job_location}&locationId=&geoId=102713980&f_TPR=r604800&position=1&pageNum=0"
 
     def open_link(driver, link):
         while True:
@@ -216,7 +210,7 @@ class linkedin_scraper:
                 driver.get(link)
                 driver.implicitly_wait(5)
                 time.sleep(3)
-                driver.find_element(By.CSS_SELECTOR, 'span.switcher-tabs__placeholder-text.m-auto')
+                driver.find_element(by=By.CSS_SELECTOR, value='span.switcher-tabs__placeholder-text.m-auto')
                 return
             except NoSuchElementException:
                 continue
@@ -224,53 +218,70 @@ class linkedin_scraper:
     def link_open_scrolldown(driver, link, job_count):
         linkedin_scraper.open_link(driver, link)
         for _ in range(job_count):
-            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_UP)
+            body = driver.find_element(by=By.TAG_NAME, value='body')
+            body.send_keys(Keys.PAGE_UP)
             try:
-                driver.find_element(By.CSS_SELECTOR,
-                    "button[data-tracking-control-name='public_jobs_contextual-sign-in-modal_modal_dismiss']").click()
+                driver.find_element(by=By.CSS_SELECTOR,
+                                    value="button[data-tracking-control-name='public_jobs_contextual-sign-in-modal_modal_dismiss']>icon>svg").click()
             except:
                 pass
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             driver.implicitly_wait(2)
             try:
-                driver.find_element(By.CSS_SELECTOR, "button[aria-label='See more jobs']").click()
+                driver.find_element(by=By.CSS_SELECTOR, value="button[aria-label='See more jobs']").click()
                 driver.implicitly_wait(5)
             except:
                 pass
 
     def job_title_filter(scrap_job_title, user_job_title_input):
         user_input = [i.lower().strip() for i in user_job_title_input]
-        scrap_title = scrap_job_title.lower().strip()
-        return scrap_job_title if any(all(word in scrap_title for word in i.split()) for i in user_input) else np.nan
+        scrap_title = [i.lower().strip() for i in [scrap_job_title]]
+        confirmation_count = 0
+        for i in user_input:
+            if all(j in scrap_title[0] for j in i.split()):
+                confirmation_count += 1
+        return scrap_job_title if confirmation_count > 0 else np.nan
 
     def scrap_company_data(driver, job_title_input, job_location):
-        company = [i.text for i in driver.find_elements(By.CSS_SELECTOR, 'h4.base-search-card__subtitle')]
-        location = [i.text for i in driver.find_elements(By.CSS_SELECTOR, 'span.job-search-card__location')]
-        title = [i.text for i in driver.find_elements(By.CSS_SELECTOR, 'h3.base-search-card__title')]
-        url = [i.get_attribute('href') for i in driver.find_elements(By.XPATH, '//a[contains(@href, "/jobs/")]')]
-        df = pd.DataFrame({'Company Name': company, 'Job Title': title, 'Location': location, 'Website URL': url})
+        company = driver.find_elements(by=By.CSS_SELECTOR, value='h4[class="base-search-card__subtitle"]')
+        company_name = [i.text for i in company]
+        location = driver.find_elements(by=By.CSS_SELECTOR, value='span[class="job-search-card__location"]')
+        company_location = [i.text for i in location]
+        title = driver.find_elements(by=By.CSS_SELECTOR, value='h3[class="base-search-card__title"]')
+        job_title = [i.text for i in title]
+        url = driver.find_elements(by=By.XPATH, value='//a[contains(@href, "/jobs/")]')
+        website_url = [i.get_attribute('href') for i in url]
+        df = pd.DataFrame(company_name, columns=['Company Name'])
+        df['Job Title'] = pd.DataFrame(job_title)
+        df['Location'] = pd.DataFrame(company_location)
+        df['Website URL'] = pd.DataFrame(website_url)
         df['Job Title'] = df['Job Title'].apply(lambda x: linkedin_scraper.job_title_filter(x, job_title_input))
         df['Location'] = df['Location'].apply(lambda x: x if job_location.lower() in x.lower() else np.nan)
-        return df.dropna().reset_index(drop=True)
+        df = df.dropna().reset_index(drop=True)
+        return df
 
     def scrap_job_description(driver, df, job_count):
+        website_url = df['Website URL'].tolist()
         job_description = []
-        for url in df['Website URL']:
+        for i in range(len(website_url)):
             try:
-                linkedin_scraper.open_link(driver, url)
-                driver.find_element(By.CSS_SELECTOR,
-                    'button[data-tracking-control-name="public_jobs_show-more-html-btn"]').click()
+                linkedin_scraper.open_link(driver, website_url[i])
+                driver.find_element(by=By.CSS_SELECTOR,
+                                    value='button[data-tracking-control-name="public_jobs_show-more-html-btn"]').click()
+                driver.implicitly_wait(5)
                 time.sleep(1)
-                desc = driver.find_element(By.CSS_SELECTOR,
-                    'div.show-more-less-html__markup').text
-                job_description.append(desc if desc.strip() else np.nan)
+                description = driver.find_elements(by=By.CSS_SELECTOR,
+                                                   value='div[class="show-more-less-html__markup relative overflow-hidden"]')
+                data = [i.text for i in description][0]
+                job_description.append(data if data.strip() else 'Description Not Available')
             except:
-                job_description.append(np.nan)
-            if len(job_description) >= job_count:
+                job_description.append('Description Not Available')
+            if len(job_description) == job_count:
                 break
-        df = df.iloc[:len(job_description), :]
+        df = df.iloc[:len(job_description), :].copy()
         df['Job Description'] = job_description
-        return df.dropna().reset_index(drop=True)
+        df = df[df['Job Description'] != 'Description Not Available'].reset_index(drop=True)
+        return df
 
     def display_data_userinterface(df_final):
         if len(df_final) > 0:
@@ -290,7 +301,7 @@ class linkedin_scraper:
         try:
             job_title_input, job_location, job_count, submit = linkedin_scraper.get_userinput()
             if submit:
-                if job_title_input and job_location:
+                if job_title_input != [] and job_location != '':
                     with st.spinner('Chrome Webdriver Setup Initializing...'):
                         driver = linkedin_scraper.webdriver_setup()
                     with st.spinner('Loading More Job Listings...'):
@@ -300,17 +311,18 @@ class linkedin_scraper:
                         df = linkedin_scraper.scrap_company_data(driver, job_title_input, job_location)
                         df_final = linkedin_scraper.scrap_job_description(driver, df, job_count)
                     linkedin_scraper.display_data_userinterface(df_final)
-                else:
-                    st.warning("Please fill all fields")
+                elif job_title_input == []:
+                    st.warning("Job Title is Empty")
+                elif job_location == '':
+                    st.warning("Job Location is Empty")
         except Exception as e:
             st.error(e)
         finally:
             if driver:
                 driver.quit()
 
-# =====================
-# STREAMLIT UI
-# =====================
+
+# ==== Streamlit UI ====
 streamlit_config()
 add_vertical_space(2)
 
