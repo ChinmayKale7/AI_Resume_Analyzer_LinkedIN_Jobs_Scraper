@@ -2,7 +2,6 @@
 
 **Author:** Chinmay Kale  
 **Role:** Technical Head – Data Science Students Association  
-**Date:** 2025  
 
 ## 👋 About Me
 Hi! I'm **Chinmay Kale**, a passionate data science enthusiast and developer.  
@@ -110,4 +109,5 @@ Search LinkedIn Jobs
 Enter job title, location, and desired number of jobs
 
 View results with descriptions and direct links
+
 
