@@ -69,8 +69,10 @@ resume-analyzer-ai/
 
 ### 1️⃣ Clone Repository
 ```bash
-git clone https://github.com/your-username/resume-analyzer-ai.git
-cd resume-analyzer-ai
+git clone https://github.com/ChinmayKale7/AI_Resume_Analyzer_LinkedIN_Jobs_Scraper.git
+
+cd AI_Resume_Analyzer_LinkedIN_Jobs_Scraper
+
 
 pip install -r requirements.txt
 
@@ -109,5 +111,6 @@ Search LinkedIn Jobs
 Enter job title, location, and desired number of jobs
 
 View results with descriptions and direct links
+
 
 
