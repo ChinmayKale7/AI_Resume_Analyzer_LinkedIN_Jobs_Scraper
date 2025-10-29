@@ -5,7 +5,7 @@ from PyPDF2 import PdfReader
 import google.generativeai as genai
 
 # ====== CONFIG ======
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # ====== STREAMLIT PAGE CONFIG ======
 def streamlit_config():
@@ -170,3 +170,4 @@ elif option == 'Job Titles':
     job_title_suggestion()
 elif option == 'Linkedin Jobs':
     linkedin_jobs()
+
